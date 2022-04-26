@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple</title>
+
+    <script src="https://js.stripe.com/v3/"></script>
+
+    <script>
+
+        // ALTERAR CLIENT SECRET 
+       var clientSecret = 'pi_3KsqB6GzzYsq8HFN1XlqCRas_secret_ZGllnMRecIGrgLrYrztwa7ZPw'; // ALTERAR
+
+        var stripe = Stripe('ALTERAR', { // ALTERAR publishable_key
+            apiVersion: "2020-08-27",
+        });
+
+        var paymentRequest = stripe.paymentRequest({
+            country: 'US',
+            currency: 'eur',
+            total: {
+                label: 'Demo total',
+                amount: 25993,
+            },
+            requestPayerName: true,
+            requestPayerEmail: true,
+            requestPayerPhone: true,
+
+            requestShipping: true,
+
+            shippingOptions: [
+                // The first shipping option in this list appears as the default
+                // option in the browser payment interface.
+                {
+                    id: 'free-shipping',
+                    label: 'Free shipping',
+                    detail: 'Arrives in 5 to 7 days',
+                    amount: 0,
+                },
+            ],
+
+            // `shippingOptions` is optional at this point:
+
+        });
+
+        var elements = stripe.elements();
+        var prButton = elements.create('paymentRequestButton', {
+            paymentRequest: paymentRequest,
+        });
+
+        // Check the availability of the Payment Request API first.
+        paymentRequest.canMakePayment().then(function (result) {
+            if (result) {
+                prButton.mount('#payment-request-button');
+            } else {
+                document.getElementById('payment-request-button').style.display = 'none';
+            }
+        });
+
+        paymentRequest.on('paymentmethod', function (ev) {
+            // Confirm the PaymentIntent without handling potential next actions (yet).
+            stripe.confirmCardPayment(
+                clientSecret,
+                { payment_method: ev.paymentMethod.id },
+                { handleActions: false }
+            ).then(function (confirmResult) {
+                if (confirmResult.error) {
+                    // Report to the browser that the payment failed, prompting it to
+                    // re-show the payment interface, or show an error message and close
+                    // the payment interface.
+                    ev.complete('fail');
+                } else {
+                    // Report to the browser that the confirmation was successful, prompting
+                    // it to close the browser payment method collection interface.
+                    ev.complete('success');
+                    // Check if the PaymentIntent requires any actions and if so let Stripe.js
+                    // handle the flow. If using an API version older than "2019-02-11"
+                    // instead check for: `paymentIntent.status === "requires_source_action"`.
+                    if (confirmResult.paymentIntent.status === "requires_action") {
+                        // Let Stripe.js handle the rest of the payment flow.
+                        stripe.confirmCardPayment(clientSecret).then(function (result) {
+                            console.log(result);
+                            if (result.error) {
+                                // The payment failed -- ask your customer for a new payment method.
+                            } else {
+                                // The payment has succeeded.
+                            }
+                        });
+                    } else {
+                        // The payment has succeeded.
+                    }
+                }
+            });
+        });
+
+
+    </script>
+
+</head>
+
+<body>
+
+    <div id="payment-request-button">
+        <!-- A Stripe Element will be inserted here. -->
+    </div>
+</body>
+
+</html>
